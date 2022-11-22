@@ -128,15 +128,20 @@ TARGET = "HELLO WORLD"
 alphabet = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
 alphabet.append(' ')
 
-# we initialize the population with random characters
-population = []
-for i in range(100):
-    tempChromosome = []
-    for j in range(len(TARGET)):
-        tempChromosome.append(alphabet[random.randint(0, len(alphabet) - 1)])
-    population.append(Individual(tempChromosome))
-
 # What does your population look like?
+
+
+def create_initial_population():
+    # we initialize the population with random characters
+    population = []
+    for i in range(100):
+        tempChromosome = []
+        for j in range(len(TARGET)):
+            tempChromosome.append(
+                alphabet[random.randint(0, len(alphabet) - 1)])
+        population.append(Individual(tempChromosome))
+
+    return population
 
 
 def print_population(population):
@@ -194,6 +199,8 @@ def mutation(population):
 
     return population
 
+
+population = create_initial_population()
 
 for i in range(50):
     print("Generation: " + str(i))
