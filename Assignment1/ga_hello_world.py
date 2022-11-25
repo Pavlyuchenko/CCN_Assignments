@@ -1,11 +1,11 @@
 import random
+import math
+
+# Individual class implementation
 
 
 class Individual:
-    chromosome = ""
-    fitness = 0
-
-    def __init__(self, chromosome):
+    def __init__(self, chromosome: str):
         self.chromosome = chromosome
         self.fitness = 0
 
@@ -26,13 +26,6 @@ class Individual:
 
     def genoToPhenotype(self):
         return ("".join(self.chromosome))
-
-    def clone(self):
-        chromClone = ""
-        for i in range(len(self.chromosome)):
-            chromClone[i] = self.chromosome[i]
-
-        return Individual(chromClone)
 
 
 """
@@ -60,7 +53,7 @@ Modified by Steven de Jong for Genetic Algorithms.
 
 Modified by Jo Stevens for practical session.
 
-Rewritten by Michal Pavlíček to Python.
+Rewritten by Michal Pavlíček to Python (with help from GitHub Copilot).
 
 @author Jason Harrison@cs.ubc.ca
 @version 1.0, 23 Jun 1995
@@ -77,7 +70,7 @@ Rewritten by Michal Pavlíček to Python.
 
 
 class HeapSort:
-    def sort(self, i):
+    def sort(self, i: list[Individual]):
         N = len(i)
 
         k = int(N / 2)
@@ -109,32 +102,21 @@ class HeapSort:
 
         i[k - 1] = T
 
+# Constant variables
 
-"""
-Some very basic stuff to get you started. It shows basically how each
-chromosome is built.
-
-@ author Jo Stevens
-@ version 1.0, 14 Nov 2008
-
-@ author Alard Roebroeck
-@ version 1.1, 12 Dec 2012
-
-@ author Michal Pavlíček
-@ version 1.2, 19 Nov 2022
-"""
 
 TARGET = "HELLO WORLD"
+POPULATION_SIZE = 100
 alphabet = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
 alphabet.append(' ')
 
-# What does your population look like?
+# Helper functions
 
 
-def create_initial_population():
+def create_initial_population(population_size) -> list[Individual]:
     # we initialize the population with random characters
     population = []
-    for i in range(100):
+    for i in range(population_size):
         tempChromosome = []
         for j in range(len(TARGET)):
             tempChromosome.append(
@@ -144,12 +126,12 @@ def create_initial_population():
     return population
 
 
-def print_population(population):
+def print_population(population: list[Individual]):
     for i in population:
         print(i.genoToPhenotype())
 
 
-def assign_fitness(population):
+def assign_fitness(population: list[Individual]):
     for individual in population:
         fitness = 0
         chromosome = individual.getChromosome()
@@ -161,60 +143,157 @@ def assign_fitness(population):
         individual.setFitness(fitness)
 
 
-def elitist_selection(population):
-    # sort the population
+def sort(population: list[Individual]):
     heapSort = HeapSort()
     heapSort.sort(population)
 
-    # select the best 10 individuals
-    print("   * " + str(population[0]))
-    return population[:10]
+    return population
+
+# Selection functions
 
 
-def middle_crossover(population):
-    crossover_point = 5
+def elitist_selection(population: list[Individual], percentage: int):
+    if percentage > 100:
+        percentage = 100
+    # select the best *percentage* individuals
+    return population[:int(len(population) / 100 * percentage)]
+
+
+def roulette_selection(population: list[Individual], percentage: int):
+    if percentage > 100:
+        percentage = 100
+    # Power is used to increase the probability of the fittest individuals
+    power = 10
+    new_individuals = []
+
+    for _ in range(int(len(population) / 100 * percentage)):
+        # Calculates the total fitness in population
+        total_fitness = 0
+
+        for individual in population:
+            total_fitness += individual.getFitness() ** power
+
+        # Select a random number from 0 to total_fitness
+        rand = random.randrange(0, total_fitness)
+
+        # The code below adds the fitness of each individual to the sum until it is greater than the random number
+        # Once the sum is greater than the random number, the current individual is selected
+        selected_individual = None
+        temp_sum = 0
+        for individual in population:
+            if temp_sum >= rand:
+                selected_individual = individual
+                break
+            temp_sum += individual.getFitness() ** power
+        else:
+            selected_individual = population[-1]
+
+        new_individuals.append(selected_individual)
+        population.remove(selected_individual)
+
+    return new_individuals
+
+
+def tournament_selection(population: list[Individual], percentage: int):
+    if percentage > 100:
+        percentage = 100
+    # Generates tournament size (= k) between 2 and len(population) / 2
+    tournament_size = random.randint(2, int(len(population) / 2))
+
+    new_individuals = []
+    for _ in range(int(len(population) / 100 * percentage)):
+        # Selects k random individuals from population
+        sample = random.sample(population, tournament_size)
+        # Chooses the best individual from the sample
+        best = max(sample, key=lambda x: x.getFitness())
+
+        # Adds the best individual to the new population and removes it from the old one
+        new_individuals.append(best)
+        population.remove(best)
+
+    return new_individuals
+
+
+def middle_crossover(population: list[Individual], num_crossovers: int, population_size: int):
     new_population = []
 
     for individual1 in population:
         for individual2 in population:
-            chromosome1 = individual1.getChromosome(
-            )[:crossover_point] + individual2.getChromosome()[crossover_point:]
-            chromosome2 = individual2.getChromosome(
-            )[:crossover_point] + individual1.getChromosome()[crossover_point:]
+            chromosome1 = []
+            chromosome2 = []
 
-            offspring1 = Individual(chromosome1)
-            offspring2 = Individual(chromosome2)
+            alternate = True
+            step = math.ceil(len(TARGET) / (num_crossovers+1))
+
+            for i in range(0, len(TARGET), step):
+                added_chromosome_1 = individual1.getChromosome()[i:i+step]
+                added_chromosome_2 = individual2.getChromosome()[i:i+step]
+
+                if alternate:
+                    chromosome1.append(added_chromosome_1)
+                    chromosome2.append(added_chromosome_2)
+                else:
+                    chromosome1.append(added_chromosome_2)
+                    chromosome2.append(added_chromosome_1)
+                alternate = not alternate
+
+            res_1 = chromosome1[0]
+            for i in range(1, len(chromosome1)):
+                res_1 += chromosome1[i]
+
+            res_2 = chromosome2[0]
+            for i in range(1, len(chromosome2)):
+                res_2 += chromosome2[i]
+
+            offspring1 = Individual(res_1)
+            offspring2 = Individual(res_2)
             new_population.append(offspring1)
             new_population.append(offspring2)
 
-    return new_population
+    return random.sample(new_population, population_size)
+
+# Mutation functions
 
 
-def mutation(population):
+def mutation(population: list[Individual], chance: int):
+    if chance > 50:
+        chance = 50
+
     for individual in population:
         for index in range(len(individual.getChromosome())):
-            if random.randint(0, 100) <= 5:
+            if random.randint(0, 100) <= chance:
                 individual.getChromosome()[index] = alphabet[random.randint(
                     0, len(alphabet) - 1)]
 
     return population
 
 
-population = create_initial_population()
+def run_ga(population: list[Individual], selection_function, success_rate: int, num_crossovers: int, mutation_chance: int, population_size: int):
+    generation = 0
+    while True:
+        # print("Generation: " + str(generation))
 
-for i in range(50):
-    print("Generation: " + str(i))
+        assign_fitness(population)
 
-    assign_fitness(population)
+        population = sort(population)
 
-    population = elitist_selection(population)
+        # print(population[0])
 
-    population = middle_crossover(population)
+        if population[0].getFitness() == len(TARGET):
+            print(generation)
+            return generation
 
-    for i in population:
-        if i.genoToPhenotype() == TARGET:
-            print("Found the target!")
-            print(i.genoToPhenotype())
-            exit()
+        population = selection_function(population, success_rate)
 
-    mutation(population)
+        population = middle_crossover(
+            population, num_crossovers, population_size)
+
+        population = mutation(population, mutation_chance)
+
+        generation += 1
+
+
+population = create_initial_population(100)
+
+run_ga(population, elitist_selection, success_rate=15,
+       num_crossovers=1, mutation_chance=5, population_size=100)
